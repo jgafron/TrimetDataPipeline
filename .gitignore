@@ -1,8 +1,0 @@
-# virtual environments
-env/
-venv/
-.env
-.venv
-
-# python optimization files
-__pycache__/
