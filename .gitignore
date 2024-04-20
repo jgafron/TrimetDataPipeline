@@ -1,0 +1,14 @@
+# python opt
+__pycache__/
+
+# envs
+env/
+venv/
+.env
+.venv
+env.bak/
+venv.bak/
+
+# MAC
+DS_Store/
+

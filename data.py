@@ -7,9 +7,9 @@ from urllib.request import urlopen
 from urllib.error import HTTPError, URLError
 
 # constants
-DATA_FILE_PATH = '/home/jgafron/dataeng_project/data/'
-DATASET_FILE_PATH = '/home/jgafron/dataeng_project/data/buttercup.json'
-TEST_DATASET_FILE_PATH = '/home/jgafron/dataeng_project/data/test_data.json'
+DATA_FILE_PATH = 'data/'
+DATASET_FILE_PATH = 'data/buttercup.json'
+TEST_DATASET_FILE_PATH = 'data/test_data.json'
 BUS_DATA_URL = "https://busdata.cs.pdx.edu/api/getBreadCrumbs"
 
 
@@ -75,15 +75,16 @@ def get_all_vehicle_data(dataset_file_path: str) -> None:
 
 
 if __name__ == "__main__":
-    print('''
-        BUS DATA LOADER
-        ---------------
-        1 - Load test data set
-        2 - Load full data set
-    ''')
-    selection = '2'#input(
+    #print('''
+    #    BUS DATA LOADER
+    #    ---------------
+    #    1 - Load test data set
+    #    2 - Load full data set
+    #''')
+    #input(
         #"Please select from the options above by typing in the corresponding number: ")
 
+    selection = '2'
     match selection:
         case '1':
             get_all_vehicle_data(TEST_DATASET_FILE_PATH)
