@@ -12,5 +12,6 @@ venv.bak/
 # MAC
 DS_Store/
 
-# data
+# data folders
 data/
+output/
