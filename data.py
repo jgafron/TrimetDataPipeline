@@ -63,7 +63,7 @@ def get_all_vehicle_data(dataset_file_path: str) -> None:
     today = datetime.today()
     formatted_date = today.strftime('%Y-%m-%d')
     output_file_path = os.path.join(
-        DATA_FILE_PATH, f'{formatted_date}_bus_data.json')
+        DATA_DIR, f'{formatted_date}_bus_data.json')
 
     # convert python list back to json
     json_object = json.dumps(output_data)
