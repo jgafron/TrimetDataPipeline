@@ -1,18 +1,18 @@
-# data folder
-data/
-
-# python opt files
+# python opt
 __pycache__/
 
-# mac files
-**/.DS_Store
-.DS_Store
-
-# virtual environmnets
-.env
-.venv
+# envs
 env/
 venv/
+.env
+.venv
 env.bak/
 venv.bak/
+
+# MAC
+DS_Store/
+
+# data folders
+data/
+output/
 

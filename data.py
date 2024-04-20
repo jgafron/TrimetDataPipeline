@@ -7,11 +7,11 @@ from urllib.request import urlopen
 from urllib.error import HTTPError, URLError
 
 # constants
-DATA_FILE_PATH = '/home/jgafron/dataeng_project/data/'
-DATASET_FILE_PATH = '/home/jgafron/dataeng_project/data/buttercup.json'
-TEST_DATASET_FILE_PATH = '/home/jgafron/dataeng_project/data/test_data.json'
+BASE_DIR = os.path.dirname(__file__)
+DATA_DIR = os.path.join(BASE_DIR, 'data/')
+DATASET_FILE_PATH = os.path.join(DATA_DIR, 'buttercup.json')
+TEST_DATASET_FILE_PATH = os.path.join(DATA_DIR, 'test_data.json')
 BUS_DATA_URL = "https://busdata.cs.pdx.edu/api/getBreadCrumbs"
-
 
 def get_vehicle_data(url: str, vehicle_id: int) -> list | None:
     '''Sends a get request to an API to extract breadcrumb data by vehicle id'''
@@ -63,7 +63,7 @@ def get_all_vehicle_data(dataset_file_path: str) -> None:
     today = datetime.today()
     formatted_date = today.strftime('%Y-%m-%d')
     output_file_path = os.path.join(
-        DATA_FILE_PATH, f'{formatted_date}_bus_data.json')
+        DATA_DIR, f'{formatted_date}_bus_data.json')
 
     # convert python list back to json
     json_object = json.dumps(output_data)
@@ -75,15 +75,17 @@ def get_all_vehicle_data(dataset_file_path: str) -> None:
 
 
 if __name__ == "__main__":
-    print('''
-        BUS DATA LOADER
-        ---------------
-        1 - Load test data set
-        2 - Load full data set
-    ''')
-    selection = '2'#input(
-        #"Please select from the options above by typing in the corresponding number: ")
+    # For testing purposes only
+    #print('''
+    #    BUS DATA LOADER
+    #    ---------------
+    #    1 - Load test data set
+    #    2 - Load full data set
+    #''')
+    #input(
+    #"Please select from the options above by typing in the corresponding number: ")
 
+    selection = '2'
     match selection:
         case '1':
             get_all_vehicle_data(TEST_DATASET_FILE_PATH)
