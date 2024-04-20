@@ -1,0 +1,18 @@
+# data folder
+data/
+
+# python opt files
+__pycache__/
+
+# mac files
+**/.DS_Store
+.DS_Store
+
+# virtual environmnets
+.env
+.venv
+env/
+venv/
+env.bak/
+venv.bak/
+
