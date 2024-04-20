@@ -7,11 +7,11 @@ from urllib.request import urlopen
 from urllib.error import HTTPError, URLError
 
 # constants
-DATA_FILE_PATH = 'data/'
-DATASET_FILE_PATH = 'data/buttercup.json'
-TEST_DATASET_FILE_PATH = 'data/test_data.json'
+BASE_DIR = os.path.dirname(__file__)
+DATA_DIR = os.path.join(BASE_DIR, 'data/')
+DATASET_FILE_PATH = os.path.join(DATA_DIR, 'buttercup.json')
+TEST_DATASET_FILE_PATH = os.path.join(DATA_DIR, 'test_data.json')
 BUS_DATA_URL = "https://busdata.cs.pdx.edu/api/getBreadCrumbs"
-
 
 def get_vehicle_data(url: str, vehicle_id: int) -> list | None:
     '''Sends a get request to an API to extract breadcrumb data by vehicle id'''
@@ -75,6 +75,7 @@ def get_all_vehicle_data(dataset_file_path: str) -> None:
 
 
 if __name__ == "__main__":
+    # For testing purposes only
     #print('''
     #    BUS DATA LOADER
     #    ---------------
@@ -82,7 +83,7 @@ if __name__ == "__main__":
     #    2 - Load full data set
     #''')
     #input(
-        #"Please select from the options above by typing in the corresponding number: ")
+    #"Please select from the options above by typing in the corresponding number: ")
 
     selection = '2'
     match selection:
