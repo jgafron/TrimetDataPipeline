@@ -35,7 +35,7 @@ class Subscriber:
         print(f"Clearing from data stream: {message}.")
         message.ack()
     
-    def pull_messages(self, callback):
+    def pull_messages(self, callback, will_save):
         streaming_pull_future = self.subscriber.subscribe(self.subscription_path, callback=callback)
         print(f"Listening for messages on {self.subscription_path}..\n")
 
@@ -47,8 +47,10 @@ class Subscriber:
             except TimeoutError:
                 streaming_pull_future.cancel()  # Trigger the shutdown.
                 streaming_pull_future.result()  # Block until the shutdown is complete.
-            # write messages to json file
-            self.save_messages()
+
+            if will_save:
+                # write messages to json file
+                self.save_messages()
 
     def save_messages(self):
         '''Saves messages received to a json file'''
@@ -92,9 +94,9 @@ if __name__ == "__main__":
     # clear the data stream
     if args.clear:
         print("Clearing data stream")
-        sub.pull_messages(sub.clear_messages)
+        sub.pull_messages(sub.clear_messages, False)
     
     # listen for messages and writes them to json file every 5 minutes
     else:
         while True: # run indefinitely
-            sub.pull_messages(sub.log_messages)
+            sub.pull_messages(sub.log_messages, True)
