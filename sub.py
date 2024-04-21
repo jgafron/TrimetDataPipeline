@@ -1,5 +1,6 @@
 import os
 import json
+import argparse
 from datetime import datetime
 from concurrent.futures import TimeoutError
 from google.cloud import pubsub_v1
@@ -21,16 +22,21 @@ class Subscriber:
         self.subscription_path = self.subscriber.subscription_path(project_id, subscription_id)
         self.messages = []
 
-    def callback(self, message: pubsub_v1.subscriber.message.Message) -> None:
-        '''Acknowledges messages to clear it from the datapipeline and adds messages to in memory list'''
+    def log_messages(self, message: pubsub_v1.subscriber.message.Message) -> None:
+        '''Acknowledges messages to clear it from the data stream and adds messages to in memory list'''
         print(f"Received {message}.")
         bytes_data = message.data
         data = bytes_data.decode("utf-8")
         self.messages.append(data)
         message.ack()
     
-    def pull_messages(self):
-        streaming_pull_future = self.subscriber.subscribe(self.subscription_path, callback=self.callback)
+    def clear_messages(self, message: pubsub_v1.subscriber.message.Message) -> None:
+        '''Acknowledges messages to clear it from the data stream'''
+        print(f"Clearing from data stream: {message}.")
+        message.ack()
+    
+    def pull_messages(self, callback):
+        streaming_pull_future = self.subscriber.subscribe(self.subscription_path, callback=callback)
         print(f"Listening for messages on {self.subscription_path}..\n")
 
         with self.subscriber:
@@ -42,7 +48,7 @@ class Subscriber:
                 streaming_pull_future.cancel()  # Trigger the shutdown.
                 streaming_pull_future.result()  # Block until the shutdown is complete.
             # write messages to json file
-            save_messages()
+            self.save_messages()
 
     def save_messages(self):
         '''Saves messages received to a json file'''
@@ -75,5 +81,20 @@ class Subscriber:
 
 
 if __name__ == "__main__":
+    # checking for cli flags
+    parser = argparse.ArgumentParser(description="Subscriber to Google Pub/Sub")
+    parser.add_argument("-c", "--clear", action="store_true", help="Clear stream data")
+    args = parser.parse_args()
+    
+    # initiliaze the Subscriber to appropriate project and topic
     sub = Subscriber(project_id, subscription_id, timeout)
-    sub.pull_messages()
+   
+    # clear the data stream
+    if args.clear:
+        print("Clearing data stream")
+        sub.pull_messages(sub.clear_messages)
+    
+    # listen for messages and writes them to json file every 5 minutes
+    else:
+        while True: # run indefinitely
+            sub.pull_messages(sub.log_messages)
