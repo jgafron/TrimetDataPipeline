@@ -31,7 +31,7 @@ class Subscriber:
         message.ack()
         self.received_count += 1
         if self.received_count >= 1000:
-            print("Received 1000 messages")
+            print("Received 1000 messages", flush=True)
             self.received_count = 0
     
     def clear_messages(self, message: pubsub_v1.subscriber.message.Message) -> None:
@@ -40,7 +40,7 @@ class Subscriber:
     
     def pull_messages(self, callback, will_save):
         streaming_pull_future = self.subscriber.subscribe(self.subscription_path, callback=callback)
-        print(f"Listening for messages on {self.subscription_path}..\n")
+        print(f"Listening for messages on {self.subscription_path}..\n", flush=True)
 
         with self.subscriber:
             try:
@@ -72,7 +72,7 @@ class Subscriber:
         json_formatted_messages = json.dumps(self.messages, indent=4)
 
         # writes messages to output file
-        print(f"Writing to {output_file_path}")
+        print(f"Writing to {output_file_path}", flush=True)
         with open(output_file_path, 'w') as file:
             file.write(json_formatted_messages)
         
@@ -88,6 +88,7 @@ class Subscriber:
 
 
 if __name__ == "__main__":
+    print("testlol", flush=True)
     # checking for cli flags
     parser = argparse.ArgumentParser(description="Subscriber to Google Pub/Sub")
     parser.add_argument("-c", "--clear", action="store_true", help="Clear stream data")
@@ -98,7 +99,7 @@ if __name__ == "__main__":
    
     # clear the data stream
     if args.clear:
-        print("Clearing data stream")
+        print("Clearing data stream", flush=True)
         sub.pull_messages(sub.clear_messages, False)
     
     # listen for messages and writes them to json file every 5 minutes
