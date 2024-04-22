@@ -19,16 +19,20 @@ class Publisher:
             json_data = json.load(file)
 
         # send each entry as a separate message
-        for entry in json_data:
+        for i, entry in enumerate(json_data):
             json_entry = json.dumps(entry)
 
             # data published must be bytestring
             data = json_entry.encode("utf-8")
 
             future = self.publisher.publish(self.topic_path, data)
-            print(future.result())
+            if i % 1000 == 0:
+                print("Published 1000 messages")
 
-        print(f"Published messages to {topic_path}.")
+        remaining_messages = len(json_data) % 1000
+        print(f"Published {remaining_messages}")
+
+        print(f"Published messages to {self.topic_path}.")
 
     def get_todays_data(self):
         today = datetime.today()

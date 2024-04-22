@@ -20,11 +20,11 @@ class Subscriber:
         self.timeout = timeout
         self.subscriber = pubsub_v1.SubscriberClient()
         self.subscription_path = self.subscriber.subscription_path(project_id, subscription_id)
+        self.received_count = 0
         self.messages = []
 
     def log_messages(self, message: pubsub_v1.subscriber.message.Message) -> None:
         '''Acknowledges messages to clear it from the data stream and adds messages to in memory list'''
-        print(f"Received {message}.")
         bytes_data = message.data
         data = bytes_data.decode("utf-8")
         self.messages.append(data)
@@ -32,7 +32,6 @@ class Subscriber:
     
     def clear_messages(self, message: pubsub_v1.subscriber.message.Message) -> None:
         '''Acknowledges messages to clear it from the data stream'''
-        print(f"Clearing from data stream: {message}.")
         message.ack()
     
     def pull_messages(self, callback, will_save):
@@ -44,6 +43,11 @@ class Subscriber:
                 # When `timeout` is not set, result() will block indefinitely,
                 # unless an exception is encountered first.
                 streaming_pull_future.result(timeout=timeout)
+                self.received_count += 1
+                if self.received_count == 1000:
+                    print("Received 1000 messages")
+                    self.received_count = 0
+
             except TimeoutError:
                 streaming_pull_future.cancel()  # Trigger the shutdown.
                 streaming_pull_future.result()  # Block until the shutdown is complete.
