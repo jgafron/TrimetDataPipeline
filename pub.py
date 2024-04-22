@@ -37,7 +37,7 @@ class Publisher:
     def get_todays_data(self):
         today = datetime.today()
         formatted_date = today.strftime('%Y-%m-%d')
-        data_file_path = f"data/{formatted_date}_bus_data.json"
+        data_file_path = f"/home/jgafron/dataeng_project/data/{formatted_date}_bus_data.json"
         return data_file_path
 
 if __name__ == "__main__":
