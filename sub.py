@@ -29,6 +29,10 @@ class Subscriber:
         data = bytes_data.decode("utf-8")
         self.messages.append(data)
         message.ack()
+        self.received_count += 1
+        if self.received_count >= 1000:
+            print("Received 1000 messages")
+            self.received_count = 0
     
     def clear_messages(self, message: pubsub_v1.subscriber.message.Message) -> None:
         '''Acknowledges messages to clear it from the data stream'''
@@ -43,10 +47,6 @@ class Subscriber:
                 # When `timeout` is not set, result() will block indefinitely,
                 # unless an exception is encountered first.
                 streaming_pull_future.result(timeout=timeout)
-                self.received_count += 1
-                if self.received_count == 1000:
-                    print("Received 1000 messages")
-                    self.received_count = 0
 
             except TimeoutError:
                 streaming_pull_future.cancel()  # Trigger the shutdown.
