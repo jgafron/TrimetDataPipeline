@@ -42,19 +42,18 @@ class Subscriber:
         streaming_pull_future = self.subscriber.subscribe(self.subscription_path, callback=callback)
         print(f"Listening for messages on {self.subscription_path}..\n", flush=True)
 
-        with self.subscriber:
-            try:
-                # When `timeout` is not set, result() will block indefinitely,
-                # unless an exception is encountered first.
-                streaming_pull_future.result(timeout=timeout)
+        try:
+            # When `timeout` is not set, result() will block indefinitely,
+            # unless an exception is encountered first.
+            streaming_pull_future.result(timeout=timeout)
 
-            except TimeoutError:
-                streaming_pull_future.cancel()  # Trigger the shutdown.
-                streaming_pull_future.result()  # Block until the shutdown is complete.
+        except TimeoutError:
+            streaming_pull_future.cancel()  # Trigger the shutdown.
+            streaming_pull_future.result()  # Block until the shutdown is complete.
 
-            if will_save:
-                # write messages to json file
-                self.save_messages()
+        if will_save:
+             # write messages to json file
+             self.save_messages()
 
     def save_messages(self):
         '''Saves messages received to a json file'''
@@ -88,7 +87,6 @@ class Subscriber:
 
 
 if __name__ == "__main__":
-    print("testlol", flush=True)
     # checking for cli flags
     parser = argparse.ArgumentParser(description="Subscriber to Google Pub/Sub")
     parser.add_argument("-c", "--clear", action="store_true", help="Clear stream data")
@@ -98,11 +96,15 @@ if __name__ == "__main__":
     sub = Subscriber(project_id, subscription_id, timeout)
    
     # clear the data stream
-    if args.clear:
-        print("Clearing data stream", flush=True)
-        sub.pull_messages(sub.clear_messages, False)
+    try:
+        if args.clear:
+            print("Clearing data stream", flush=True)
+            sub.pull_messages(sub.clear_messages, False)
     
-    # listen for messages and writes them to json file every 5 minutes
-    else:
-        while True: # run indefinitely
-            sub.pull_messages(sub.log_messages, True)
+        # listen for messages and writes them to json file every 5 minutes
+        else:
+            while True: # run indefinitely
+                sub.pull_messages(sub.log_messages, True)
+
+    finally:
+        sub.subscriber.close()
