@@ -64,7 +64,8 @@ class Subscriber:
 
         # if json file already exists, load that data in so that we don't lose it
         if os.path.exists(output_file_path):
-            previously_loaded_messages = json.load(output_file_path)
+            with open(output_file_path, 'r') as file:
+                previously_loaded_messages = json.load(file)
             self.messages.extend(previously_loaded_messages)
         
         # format list to json format
