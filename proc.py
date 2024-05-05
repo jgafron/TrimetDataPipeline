@@ -39,6 +39,7 @@ class Processor:
             if hasattr(method, "is_transformation"):
                 data = method(data)
 
+        data = cls.rename_columns(data)
         return {
             "breadcrumb_df": cls.get_breadcrumb_schema(data),
             "trip_df": cls.get_trip_schema(data),
@@ -88,16 +89,22 @@ class Processor:
         return transformed_df
 
     @staticmethod
-    def get_breadcrumb_schema(df: DataFrame):
-        # rename dataframe column to match with corresponding database column
+    def rename_columns(df: DataFrame):
+        """Renames dataframe columns to match with database column names"""
         column_mapping = {
             "TIMESTAMP": "tstamp",
             "GPS_LATITUDE": "latitude",
             "GPS_LONGITUDE": "longitude",
             "SPEED": "speed",
             "EVENT_NO_TRIP": "trip_id",
+            "VEHICLE_ID": "vehicle_id",
         }
         df.rename(columns=column_mapping, inplace=True)
+        return df
+
+    @staticmethod
+    def get_breadcrumb_schema(df: DataFrame):
+        """Get dataframe that fits the schema of the BreadCrumb table"""
         breadcrumb_table_columns = [
             "tstamp",
             "latitude",
@@ -109,12 +116,9 @@ class Processor:
 
     @staticmethod
     def get_trip_schema(df: DataFrame):
-        # rename dataframe column to match with corresponding database column
-        column_mapping = {"EVENT_NO_TRIP": "trip_id", "VEHICLE_ID": "vehicle_id"}
-        df.rename(columns=column_mapping, inplace=True)
-
-        # TODO
-        # Decide what to do with following values: route_id, service_key, direction
+        """Get dataframe that fits the schema of the Trip table"""
+        trip_table_columns = ["trip_id", "vehicle_id"]
+        return df[trip_table_columns]
 
     @assertion
     @staticmethod
