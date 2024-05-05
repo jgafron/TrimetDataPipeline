@@ -1,4 +1,6 @@
 import inspect
+from datetime import datetime
+import pandas as pd
 from pandas import DataFrame
 
 
@@ -36,7 +38,83 @@ class Processor:
         for _, method in inspect.getmembers(cls, inspect.ismethod):
             if hasattr(method, "is_transformation"):
                 data = method(data)
-        return data
+
+        return {
+            "breadcrumb_df": cls.get_breadcrumb_schema(data),
+            "trip_df": cls.get_trip_schema(data),
+        }
+
+    @transformation
+    @staticmethod
+    def add_timestamp(df: DataFrame):
+        """Replacing the OPD_DATE and ACT_TIME columns with a new TIMESTAMP column"""
+
+        def _create_timestamp(df_row):
+            """Helper function to create TIMESTAMP from OPD_DATE and ACT_TIME"""
+            opd_date_timestamp = datetime.strptime(
+                df_row["OPD_DATE"], "%d%b%Y:%H:%M:%S"
+            )
+            act_time_delta = pd.Timedelta(seconds=df_row["ACT_TIME"])
+            return pd.Timestamp(opd_date_timestamp + act_time_delta)
+
+        # add timestamp column
+        df["TIMESTAMP"] = df.apply(_create_timestamp, axis=1)
+
+        # drop unnecessary rows
+        transformed_df = df.drop(["OPD_DATE", "ACT_TIME"], axis=1)
+        return transformed_df
+
+    @transformation
+    @staticmethod
+    def add_speed(df: DataFrame):
+        """Creating a SPEED column computed from the METERS and TIMESTAMP columns"""
+
+        df["dMETERS"] = df["METERS"].diff().fillna(0)
+        df["dTIMESTAMP"] = df["TIMESTAMP"].diff().fillna(0)
+
+        def _create_speed(df_row):
+            """Helper function to create SPEED from dMETERS and dTIMESTAMP"""
+            if df_row["dTIMESTAMP"] != 0:
+                return df_row["dMETERS"] / df_row["dTIMESTAMP"].total_seconds()
+            else:
+                return 0
+
+        # add speed column and ensure first row has same value as second row
+        df["SPEED"] = df.apply(_create_speed, axis=1)
+        df.loc[0, "SPEED"] = df.loc[1, "SPEED"]
+
+        # drop unnecessary rows
+        transformed_df = df.drop(["dMETERS", "dTIMESTAMP"], axis=1)
+        return transformed_df
+
+    @staticmethod
+    def get_breadcrumb_schema(df: DataFrame):
+        # rename dataframe column to match with corresponding database column
+        column_mapping = {
+            "TIMESTAMP": "tstamp",
+            "GPS_LATITUDE": "latitude",
+            "GPS_LONGITUDE": "longitude",
+            "SPEED": "speed",
+            "EVENT_NO_TRIP": "trip_id",
+        }
+        df.rename(columns=column_mapping, inplace=True)
+        breadcrumb_table_columns = [
+            "tstamp",
+            "latitude",
+            "longitude",
+            "speed",
+            "trip_id",
+        ]
+        return df[breadcrumb_table_columns]
+
+    @staticmethod
+    def get_trip_schema(df: DataFrame):
+        # rename dataframe column to match with corresponding database column
+        column_mapping = {"EVENT_NO_TRIP": "trip_id", "VEHICLE_ID": "vehicle_id"}
+        df.rename(columns=column_mapping, inplace=True)
+
+        # TODO
+        # Decide what to do with following values: route_id, service_key, direction
 
     @assertion
     @staticmethod

@@ -1,2 +1,4 @@
 google-cloud-pubsub
 pandas
+SQLAlchemy
+python-dotenv

@@ -2,10 +2,15 @@ import os
 import json
 import argparse
 import pandas as pd
+
+from pandas import DataFrame
 from typing import Callable
+from dotenv import load_dotenv
 from datetime import datetime
-from concurrent.futures import TimeoutError
+from sqlalchemy import create_engine
 from google.cloud import pubsub_v1
+from concurrent.futures import TimeoutError
+
 from proc import Processor
 
 
@@ -60,9 +65,25 @@ class Subscriber:
         """Utility function to validate data received from data pipeline"""
         return Processor.transform_to_schema(df)
 
-    def upload_to_db(self, data):
+    def upload_to_db(self, data: dict[str, DataFrame]):
         """Utility function to upload data to PostgreSQL database"""
-        ...
+        load_dotenv()
+        USERNAME = os.environ["USERNAME"]
+        PASSWORD = os.environ["PASSWORD"]
+        HOST = os.environ["HOST"]
+        PORT = os.environ["PORT"]
+        DB_NAME = os.environ["DB_NAME"]
+
+        # establish connection to database
+        engine = create_engine(
+            f"postgresql://{USERNAME}:{PASSWORD}@{HOST}:{PORT}/{DB_NAME}"
+        )
+
+        # append dataframe data to existing tables in Postgresql
+        data["breadcrumb_df"].to_sql(
+            "BreadCrumb", engine, if_exists="append", index=False
+        )
+        data["trip_df"].to_sql("Trip", engine, if_exists="append", index=False)
 
     def save_messages(self):
         """Utility function to save messages received to a json file"""
