@@ -1,10 +1,12 @@
 import os
 import json
 import argparse
+import pandas as pd
 from typing import Callable
 from datetime import datetime
 from concurrent.futures import TimeoutError
 from google.cloud import pubsub_v1
+from proc import Processor
 
 
 # Configuration Variables
@@ -44,7 +46,23 @@ class Subscriber:
 
         # if not running cleaning mode, write messages to json file
         if will_save:
+            validated_data = self.validate_data()
+            transformed_data = self.transform_data(validated_data)
+            self.upload_to_db(transformed_data)
             self.save_messages()
+
+    def validate_data(self):
+        """Utility function to validate data received from data pipeline"""
+        df = pd.DataFrame(self.messages)
+        return Processor.validate_with_assertions(df)
+
+    def transform_data(self, df):
+        """Utility function to validate data received from data pipeline"""
+        return Processor.transform_to_schema(df)
+
+    def upload_to_db(self, data):
+        """Utility function to upload data to PostgreSQL database"""
+        ...
 
     def save_messages(self):
         """Utility function to save messages received to a json file"""
@@ -83,7 +101,6 @@ class Subscriber:
         self.received_count += 1
         if self.received_count % 1000:
             print(f"Received {self.received_count} messages so far", flush=True)
-            self.received_count = 0
 
     def clear_messages(self, message: pubsub_v1.subscriber.message.Message) -> None:
         """Utility function to clear a message from the data stream"""

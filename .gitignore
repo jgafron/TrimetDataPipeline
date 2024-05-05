@@ -1,5 +1,6 @@
 # python opt
 __pycache__/
+.mypy_cache/
 
 # envs
 env/
