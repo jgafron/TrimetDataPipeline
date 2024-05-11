@@ -93,7 +93,7 @@ class Publisher:
         self.publisher.publish(self.topic_path, byte_data)
 
         # print notification for every 1000 messages
-        if count % 1000:
+        if count % 1000 == 0:
             print(f"Published {count} messages so far to {self.topic_path}", flush=True)
 
 

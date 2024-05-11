@@ -16,7 +16,6 @@ def transformation(func):
     func.is_transformation = True
     return func
 
-
 class Processor:
     """
     The Processor class serves as a two-step data handler.
@@ -27,7 +26,8 @@ class Processor:
     @classmethod
     def validate_with_assertions(cls, data):
         """Apply the implemented assertions on the data"""
-        for _, method in inspect.getmembers(cls, inspect.ismethod):
+        for _, method in inspect.getmembers(cls, predicate=lambda x: inspect.isfunction(x) or inspect.ismethod(x)):
+            print("assert loop")
             if hasattr(method, "is_assertion"):
                 data = method(data)
         return data
@@ -35,9 +35,8 @@ class Processor:
     @classmethod
     def transform_to_schema(cls, data):
         """Apply transformation on data to match database schema"""
-        for _, method in inspect.getmembers(cls, inspect.ismethod):
-            if hasattr(method, "is_transformation"):
-                data = method(data)
+        data = cls.add_timestamp(data)  # Ensure this runs first
+        data = cls.add_speed(data)      # Ensure this runs after timestamp has been added
 
         data = cls.rename_columns(data)
         return {
@@ -45,8 +44,9 @@ class Processor:
             "trip_df": cls.get_trip_schema(data),
         }
 
-    @transformation
+    
     @staticmethod
+    @transformation
     def add_timestamp(df: DataFrame):
         """Replacing the OPD_DATE and ACT_TIME columns with a new TIMESTAMP column"""
 
@@ -65,8 +65,8 @@ class Processor:
         transformed_df = df.drop(["OPD_DATE", "ACT_TIME"], axis=1)
         return transformed_df
 
-    @transformation
     @staticmethod
+    @transformation
     def add_speed(df: DataFrame):
         """Creating a SPEED column computed from the METERS and TIMESTAMP columns"""
 
@@ -120,8 +120,8 @@ class Processor:
         trip_table_columns = ["trip_id", "vehicle_id"]
         return df[trip_table_columns]
 
-    @assertion
     @staticmethod
+    @assertion
     def replace_missing(df: DataFrame):  # FIll missing data with nulls
         columns_replace = [
             "EVENT_NO_TRIP",
@@ -139,8 +139,8 @@ class Processor:
             df = df.replace(f'"{column}": ,', f'"{column}": "NULL" ,')
         return df
 
-    @assertion
     @staticmethod
+    @assertion
     def vehicle_id_exist(df: DataFrame):
         """Validate data for missing vehicle IDs"""
         if "VEHICLE_ID" in df.columns:
@@ -148,8 +148,8 @@ class Processor:
             print(f"Deleted {len(df) - len(validated_df)} rows with null 'Vehicle_ID'.")
             return validated_df
 
-    @assertion
     @staticmethod
+    @assertion
     def trip_id_exist(df: DataFrame):
         """Validate existance of trip ID"""
         if "EVENT_NO_TRIP" in df.columns:
@@ -159,8 +159,8 @@ class Processor:
             )
             return validated_df
 
-    @assertion
     @staticmethod
+    @assertion
     def stop_id_exist(df: DataFrame):
         """Validate existance of stop ID"""
         if "EVENT_NO_STOP" in df.columns:
@@ -170,8 +170,8 @@ class Processor:
             )
             return validated_df
 
-    @assertion
     @staticmethod
+    @assertion
     def lat_lon_intra(df: DataFrame):
         """Intra record check, if record has latitude it must have longitude and vice versa"""
         if "GPS_LATITUDE" in df.columns and "GPS_LONGITUDE" in df.columns:
@@ -186,8 +186,8 @@ class Processor:
             )
             return validated_df
 
-    @assertion
     @staticmethod
+    @assertion
     def lat_limit(df: DataFrame):
         """Check range of latitude (-90 to 90)"""
         if "GPS_LATITUDE" in df.columns:
@@ -197,8 +197,8 @@ class Processor:
             )
             return validated_df
 
-    @assertion
     @staticmethod
+    @assertion
     def lon_limit(df: DataFrame):
         """Check range of longitude (-180 to 180)"""
         if "GPS_LONGITUDE" in df.columns:
@@ -210,8 +210,8 @@ class Processor:
             )
             return validated_df
 
-    @assertion
     @staticmethod
+    @assertion
     def odom_summary(df: DataFrame):
         """Check to see if odomoter is ever jumping backwards (summary)"""
         if "METERS" in df.columns:
@@ -221,8 +221,8 @@ class Processor:
             )
             return validated_df
 
-    @assertion
     @staticmethod
+    @assertion
     def odom_integrity(df: DataFrame):
         """Make sure odomoter is never negative"""
         if "METERS" in df.columns:
@@ -230,8 +230,8 @@ class Processor:
             print(f"Deleted {len(df) - len(validated_df)} rows with negative 'METERS'.")
             return validated_df
 
-    @assertion
     @staticmethod
+    @assertion
     def gps_integrity(df: DataFrame):
         """Make sure satellite value is never below 0"""
         if "GPS_SATELLITES" in df.columns:
@@ -241,8 +241,8 @@ class Processor:
             )
             return validated_df
 
-    @assertion
     @staticmethod
+    @assertion
     def opd_exist(df: DataFrame):
         """Validate existance of OPD_DATE"""
         if "OPD_DATE" in df.columns:

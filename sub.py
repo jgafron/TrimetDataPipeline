@@ -50,7 +50,8 @@ class Subscriber:
             stream.result()  # Block until the shutdown is complete.
 
         # if not running cleaning mode, write messages to json file
-        if will_save:
+        print(len(self.messages), flush=True)
+        if will_save and self.messages:
             validated_data = self.validate_data()
             transformed_data = self.transform_data(validated_data)
             self.upload_to_db(transformed_data)
@@ -120,7 +121,7 @@ class Subscriber:
 
         # keep track of received messages and push notification every 1000 messages
         self.received_count += 1
-        if self.received_count % 1000:
+        if self.received_count % 1000 == 0:
             print(f"Received {self.received_count} messages so far", flush=True)
 
     def clear_messages(self, message: pubsub_v1.subscriber.message.Message) -> None:
@@ -148,12 +149,12 @@ if __name__ == "__main__":
         # clear the data stream if -c flag is set
         if args.clear:
             print("Clearing data stream", flush=True)
-            team_102_sub.pull_messages(sub.clear_messages, False)
+            team_102_sub.pull_messages(team_102_sub.clear_messages, False)
 
         # otherwise, listen for messages and writes them to json file every 5 minutes
         else:
             while True:  # run indefinitely
-                team_102_sub.pull_messages(sub.log_messages, True)
+                team_102_sub.pull_messages(team_102_sub.log_messages, True)
 
     # close stream once operations above finish running
     finally:
