@@ -6,8 +6,8 @@ from urllib.request import urlopen
 from urllib.error import HTTPError, URLError
 
 # Configuration Variables
-PROJECT_ID = "team-102-data-engineering"
-TOPIC_ID = "topic-102"
+PROJECT_ID = "data-eng-jtn7"
+TOPIC_ID = "bus-data"
 BUS_DATA_URL = "https://busdata.cs.pdx.edu/api/getBreadCrumbs"
 BASE_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(BASE_DIR, "data/")

@@ -15,9 +15,9 @@ from proc import Processor
 
 
 # Configuration Variables
-PROJECT_ID = "team-102-data-engineering"
-SUB_ID = "topic-102-sub"
-TIMEOUT = 300
+PROJECT_ID = "data-eng-jtn7"
+SUB_ID = "bus-data-sub"
+TIMEOUT = 2
 BASE_DIR = os.path.dirname(__file__)
 OUTPUT_DIR = os.path.join(BASE_DIR, "output/")
 
@@ -37,7 +37,13 @@ class Subscriber:
         self.received_count = 0
         self.messages: list[dict] = []
 
-    def pull_messages(self, callback: Callable, will_save: bool) -> None:
+    def pull_messages(self):
+        self.listen_on_stream(callback=self.log_messages, will_save=True)
+
+    def clear_messages(self):
+        self.listen_on_stream(callback=self.clear_messages, will_save=False)
+
+    def listen_on_stream(self, callback: Callable, will_save: bool) -> None:
         """Pulls listens for and pulls message from data pipeline"""
         stream = self.subscriber.subscribe(self.sub_path, callback=callback)
         print(f"Listening for messages on {self.sub_path}..\n", flush=True)
@@ -50,7 +56,7 @@ class Subscriber:
             stream.result()  # Block until the shutdown is complete.
 
         # if not running cleaning mode, write messages to json file
-        print(len(self.messages), flush=True)
+        print(f'exited stream with: {len(self.messages)} messages', flush=True)
         if will_save and self.messages:
             validated_data = self.validate_data()
             transformed_data = self.transform_data(validated_data)
@@ -59,7 +65,19 @@ class Subscriber:
 
     def validate_data(self):
         """Utility function to validate data received from data pipeline"""
-        df = pd.DataFrame(self.messages)
+        columns = [
+            "EVENT_NO_TRIP",
+            "EVENT_NO_STOP",
+            "OPD_DATE",
+            "VEHICLE_ID",
+            "METERS",
+            "ACT_TIME",
+            "GPS_LONGITUDE",
+            "GPS_LATITUDE",
+            "GPS_SATELLITES",
+            "GPS_HDOP",
+        ]
+        df = pd.DataFrame(self.messages, columns=columns)
         return Processor.validate_with_assertions(df)
 
     def transform_data(self, df):
@@ -79,12 +97,15 @@ class Subscriber:
         engine = create_engine(
             f"postgresql://{USERNAME}:{PASSWORD}@{HOST}:{PORT}/{DB_NAME}"
         )
-
-        # append dataframe data to existing tables in Postgresql
-        data["breadcrumb_df"].to_sql(
-            "BreadCrumb", engine, if_exists="append", index=False
-        )
-        data["trip_df"].to_sql("Trip", engine, if_exists="append", index=False)
+        print("attempting to load data to database") 
+        try:
+            # append dataframe data to existing tables in Postgresql
+            data["breadcrumb_df"].to_sql(
+                "breadcrumb", engine, schema="public", if_exists="append", index=False
+            )
+            data["trip_df"].to_sql("trip", engine, schema="public", if_exists="append", index=False)
+        except Exception as e:
+            print("Error: ", e)
 
     def save_messages(self):
         """Utility function to save messages received to a json file"""
@@ -116,7 +137,7 @@ class Subscriber:
         data = message.data.decode("utf-8")
 
         # saves message to memory and removes it from the data pipeline
-        self.messages.append(data)
+        self.messages.append(json.loads(data))
         message.ack()
 
         # keep track of received messages and push notification every 1000 messages
@@ -143,19 +164,18 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # initiliaze the Subscriber to appropriate project and topic
-    team_102_sub = Subscriber(PROJECT_ID, SUB_ID, TIMEOUT)
+    sub = Subscriber(PROJECT_ID, SUB_ID, TIMEOUT)
 
     try:
         # clear the data stream if -c flag is set
         if args.clear:
             print("Clearing data stream", flush=True)
-            team_102_sub.pull_messages(team_102_sub.clear_messages, False)
+            sub.clear_messages()
 
         # otherwise, listen for messages and writes them to json file every 5 minutes
         else:
-            while True:  # run indefinitely
-                team_102_sub.pull_messages(team_102_sub.log_messages, True)
-
+            #while True:  # run indefinitely
+            sub.pull_messages()
     # close stream once operations above finish running
     finally:
-        team_102_sub.subscriber.close()
+        sub.subscriber.close()
