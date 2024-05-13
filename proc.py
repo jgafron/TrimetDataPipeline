@@ -26,29 +26,10 @@ class Processor:
     @classmethod
     def validate_with_assertions(cls, data):
         """Apply the implemented assertions on the data"""
-        data = cls.replace_missing(data)
-        data = cls.vehicle_id_exist(data)
-        data = cls.trip_id_exist(data)
-        data = cls.stop_id_exist(data)
-        data = cls.lat_lon_intra(data)
-        data = cls.lat_limit(data)
-        data = cls.lon_limit(data)
-        data = cls.odom_summary(data)
-        data = cls.odom_integrity(data)
-        data = cls.gps_integrity(data)
-        data = cls.opd_exist(data)
-        if data is None:
-            raise Exception("Data is corrupted, cannot proceed with validation")
-
-       # for _, method in inspect.getmembers(cls, predicate=lambda x: inspect.isfunction(x) or inspect.ismethod(x)):
-       #     print("assert loop")
-       #     if hasattr(method, "is_assertion"):
-       #         print(f"validating with {method.__name__}", flush=True)
-       #          data = method(data)
-       #          if data is None:
-       #              raise Exception("Data is corrupted, cannot proceed with validation")
+        for _, method in inspect.getmembers(cls, predicate=lambda x: inspect.isfunction(x) or inspect.ismethod(x)):
+            if hasattr(method, "is_assertion"):
+                data = method(data)
         return data
-
 
     @classmethod
     def transform_to_schema(cls, data):
@@ -56,8 +37,13 @@ class Processor:
         data = cls.add_timestamp(data)  # Ensure this runs first
         data = cls.add_speed(data)      # Ensure this runs after timestamp has been added
 
+        # for _, method in inspect.getmembers(cls, predicate=lambda x: inspect.isfunction(x) or inspect.ismethod(x)):
+        #     print("transform loop")
+        #     if hasattr(method, "is_transformation"):
+        #         print("**************reached is_transformation************")
+        #         data = method(data)
+
         data = cls.rename_columns(data)
-        print(data.columns, flush=True)
         return {
             "breadcrumb_df": cls.get_breadcrumb_schema(data),
             "trip_df": cls.get_trip_schema(data),
@@ -65,7 +51,6 @@ class Processor:
 
     
     @staticmethod
-    @transformation
     def add_timestamp(df: DataFrame):
         """Replacing the OPD_DATE and ACT_TIME columns with a new TIMESTAMP column"""
 
@@ -85,7 +70,6 @@ class Processor:
         return transformed_df
 
     @staticmethod
-    @transformation
     def add_speed(df: DataFrame):
         """Creating a SPEED column computed from the METERS and TIMESTAMP columns"""
 
@@ -101,7 +85,7 @@ class Processor:
 
         # add speed column and ensure first row has same value as second row
         df["SPEED"] = df.apply(_create_speed, axis=1)
-        df.loc[1, "SPEED"] = df.loc[2, "SPEED"]
+        df.loc[0, "SPEED"] = df.loc[1, "SPEED"]
 
         # drop unnecessary rows
         transformed_df = df.drop(["dMETERS", "dTIMESTAMP"], axis=1)
@@ -117,10 +101,6 @@ class Processor:
             "SPEED": "speed",
             "EVENT_NO_TRIP": "trip_id",
             "VEHICLE_ID": "vehicle_id",
-            "EVENT_NO_STOP": "event_no_stop",
-            "METERS": "meters",
-            "GPS_SATELLITES": "gps_satellites",
-            "GPS_HDOP": "gps_hdop",
         }
         df.rename(columns=column_mapping, inplace=True)
         return df
@@ -145,9 +125,22 @@ class Processor:
 
     @staticmethod
     @assertion
-    def replace_missing(df: DataFrame):  # Fill missing data with nulls
-        validated_df = df.fillna("NULL")
-        return validated_df
+    def replace_missing(df: DataFrame):  # FIll missing data with nulls
+        columns_replace = [
+            "EVENT_NO_TRIP",
+            "EVENT_NO_STOP",
+            "OPD_DATE",
+            "VEHICLE_ID",
+            "METERS",
+            "ACT_TIME",
+            "GPS_LONGITUDE",
+            "GPS_LATITUDE",
+            "GPS_SATELLITES",
+            "GPS_HDOP",
+        ]
+        for column in columns_replace:
+            df = df.replace(f'"{column}": ,', f'"{column}": "NULL" ,')
+        return df
 
     @staticmethod
     @assertion
@@ -155,9 +148,8 @@ class Processor:
         """Validate data for missing vehicle IDs"""
         if "VEHICLE_ID" in df.columns:
             validated_df = df[df["VEHICLE_ID"] != "NULL"]
-            print(f"Deleted {len(df) - len(validated_df)} rows with null 'Vehicle_ID'.", flush=True)
+            print(f"Deleted {len(df) - len(validated_df)} rows with null 'Vehicle_ID'.")
             return validated_df
-        raise Exception("Data missing VEHICLE_ID column")
 
     @staticmethod
     @assertion
@@ -166,10 +158,9 @@ class Processor:
         if "EVENT_NO_TRIP" in df.columns:
             validated_df = df[df["EVENT_NO_TRIP"] != "NULL"]
             print(
-                f"Deleted {len(df) - len(validated_df)} rows with null 'EVENT_NO_TRIP'.", flush=True
+                f"Deleted {len(df) - len(validated_df)} rows with null 'EVENT_NO_TRIP'."
             )
             return validated_df
-        raise Exception("Data missing EVENT_NO_TRIP column")
 
     @staticmethod
     @assertion
@@ -178,22 +169,25 @@ class Processor:
         if "EVENT_NO_STOP" in df.columns:
             validated_df = df[df["EVENT_NO_STOP"] != "NULL"]
             print(
-                f"Deleted {len(df) - len(validated_df)} rows with null 'EVENT_NO_STOP'.", flush=True
+                f"Deleted {len(df) - len(validated_df)} rows with null 'EVENT_NO_STOP'."
             )
             return validated_df
-        raise Exception("Data missing EVENT_NO_STOP column")
 
     @staticmethod
     @assertion
     def lat_lon_intra(df: DataFrame):
         """Intra record check, if record has latitude it must have longitude and vice versa"""
         if "GPS_LATITUDE" in df.columns and "GPS_LONGITUDE" in df.columns:
-            validated_df = df[(df['GPS_LATITUDE'] != "NULL") & (df['GPS_LONGITUDE'] != "NULL")]
+            validated_df = df[
+                ~(
+                    ((df["GPS_LATITUDE"] == "NULL") & (df["GPS_LONGITUDE"] != "NULL"))
+                    | ((df["GPS_LONGITUDE"] == "NULL") & (df["GPS_LATITUDE"] != "NULL"))
+                )
+            ]
             print(
-                f"Deleted {len(df) - len(validated_df)} rows with 'NULL' in either GPS Latitude or GPS Longitude", flush=True
+                f"Deleted {len(df) - len(validated_df)} rows with 'NULL' in either GPS Latitude or GPS Longitude"
             )
             return validated_df
-        raise Exception("Data missing GPS_LATITUDE OR GPS_LONGITUDE column")
 
     @staticmethod
     @assertion
@@ -202,10 +196,9 @@ class Processor:
         if "GPS_LATITUDE" in df.columns:
             validated_df = df[(df["GPS_LATITUDE"] >= -90) & (df["GPS_LATITUDE"] <= 90)]
             print(
-                f"Deleted {len(df) - len(validated_df)} rows with a GPS_LATITUDE outside the legal range", flush=True
+                f"Deleted {len(df) - len(validated_df)} rows with a GPS_LATITUDE outside the legal range"
             )
             return validated_df
-        raise Exception("Data missing GPS_LATITUDE column")
 
     @staticmethod
     @assertion
@@ -216,10 +209,9 @@ class Processor:
                 (df["GPS_LONGITUDE"] >= -180) & (df["GPS_LONGITUDE"] <= 180)
             ]
             print(
-                f"Deleted {len(df) - len(validated_df)} rows with a GPS_LONGITUDE outside the legal range", flush=True
+                f"Deleted {len(df) - len(validated_df)} rows with a GPS_LONGITUDE outside the legal range"
             )
             return validated_df
-        raise Exception("Data missing GPS_LONGITUDE column")
 
     @staticmethod
     @assertion
@@ -228,10 +220,9 @@ class Processor:
         if "METERS" in df.columns:
             validated_df = df[df["METERS"] >= df["METERS"].shift()]
             print(
-                f"Deleted {len(df) - len(validated_df)} rows with odometer readings less than the previous row.", flush=True
+                f"Deleted {len(df) - len(validated_df)} rows with odometer readings less than the previous row."
             )
             return validated_df
-        raise Exception("Data missing METERS column")
 
     @staticmethod
     @assertion
@@ -239,9 +230,8 @@ class Processor:
         """Make sure odomoter is never negative"""
         if "METERS" in df.columns:
             validated_df = df[df["METERS"] >= 0]
-            print(f"Deleted {len(df) - len(validated_df)} rows with negative 'METERS'.", flush=True)
+            print(f"Deleted {len(df) - len(validated_df)} rows with negative 'METERS'.")
             return validated_df
-        raise Exception("Data missing METERS column")
 
     @staticmethod
     @assertion
@@ -250,10 +240,9 @@ class Processor:
         if "GPS_SATELLITES" in df.columns:
             validated_df = df[df["GPS_SATELLITES"] > 0]
             print(
-                f"Deleted {len(df) - len(validated_df)} rows with 'GPS SATELLITES' value 0 or below.", flush=True
+                f"Deleted {len(df) - len(validated_df)} rows with 'GPS SATELLITES' value 0 or below."
             )
             return validated_df
-        raise Exception("Data missing GPS_SATELLITES column")
 
     @staticmethod
     @assertion
@@ -261,6 +250,5 @@ class Processor:
         """Validate existance of OPD_DATE"""
         if "OPD_DATE" in df.columns:
             validated_df = df[df["OPD_DATE"] != "NULL"]
-            print(f"Deleted {len(df) - len(validated_df)} rows with null 'OPD_DATE'.", flush=True)
+            print(f"Deleted {len(df) - len(validated_df)} rows with null 'OPD_DATE'.")
             return validated_df
-        raise Exception("Data missing OPD_DATE column")

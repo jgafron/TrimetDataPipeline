@@ -14,7 +14,7 @@ def main():
     load_dotenv()
 
     # Load test data
-    with open('data/test_data.json', 'r') as file:
+    with open('data/2024-05-11_bus_data.json', 'r') as file:
         test_data = json.load(file)
 
     # Initialize Subscriber
@@ -28,6 +28,8 @@ def main():
 
     # Transform data
     transformed_data = sub.transform_data(validated_df)
+    
+    print(transformed_data)
 
     # Upload data to the database
     sub.upload_to_db(transformed_data)
