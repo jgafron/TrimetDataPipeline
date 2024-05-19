@@ -11,13 +11,8 @@ from sqlalchemy import create_engine
 from google.cloud import pubsub_v1
 from concurrent.futures import TimeoutError
 
-from proc import Processor
-
 
 # Configuration Variables
-PROJECT_ID = "team-102-data-engineering"
-SUB_ID = "topic-102-sub"
-TIMEOUT = 300
 BASE_DIR = os.path.dirname(__file__)
 OUTPUT_DIR = os.path.join(BASE_DIR, "output/")
 
@@ -28,7 +23,9 @@ class Subscriber:
     utilizing Google Cloud's Pub/Sub, a Stream-Processing System
     """
 
-    def __init__(self, project_id: str, sub_id: str, timeout: int | None = None):
+    def __init__(
+        self, project_id: str, sub_id: str, processor, timeout: int | None = None
+    ):
         self.project_id = project_id
         self.sub_id = sub_id
         self.timeout = timeout
@@ -36,6 +33,7 @@ class Subscriber:
         self.sub_path = self.subscriber.subscription_path(project_id, sub_id)
         self.received_count = 0
         self.messages: list[dict] = []
+        self.processor = processor
 
     def pull_messages(self, callback: Callable, will_save: bool) -> None:
         """Pulls listens for and pulls message from data pipeline"""
@@ -43,7 +41,7 @@ class Subscriber:
         print(f"Listening for messages on {self.sub_path}..\n", flush=True)
 
         try:
-            stream.result(timeout=TIMEOUT)
+            stream.result(timeout=self.timeout)
         # times out every 300 seconds to write collected data to output file
         except TimeoutError:
             stream.cancel()  # Trigger the shutdown.
@@ -58,12 +56,16 @@ class Subscriber:
 
     def validate_data(self):
         """Utility function to validate data received from data pipeline"""
-        df = pd.DataFrame(self.messages)
-        return Processor.validate_with_assertions(df)
+        # in order for pandas dataframe conversion to work properly
+        # convert messages to json and then back to python obj
+        json_messages = json.dumps(self.messages, indent=4)
+        messages = json.loads(json_messages)
+        df = pd.DataFrame(messages)
+        return self.processor.validate_with_assertions(df)
 
     def transform_data(self, df):
         """Utility function to validate data received from data pipeline"""
-        return Processor.transform_to_schema(df)
+        return self.processor.transform_to_schema(df)
 
     def upload_to_db(self, data: dict[str, DataFrame]):
         """Utility function to upload data to PostgreSQL database"""
@@ -80,10 +82,9 @@ class Subscriber:
         )
 
         # append dataframe data to existing tables in Postgresql
-        data["breadcrumb_df"].to_sql(
-            "BreadCrumb", engine, if_exists="append", index=False
-        )
-        data["trip_df"].to_sql("Trip", engine, if_exists="append", index=False)
+        for table, dataframe in data.items():
+            dataframe.to_sql(table, engine, if_exists="append", index=False)
+            print(f"Loaded {len(dataframe)} rows of data to {table}")
 
     def save_messages(self):
         """Utility function to save messages received to a json file"""
@@ -95,7 +96,6 @@ class Subscriber:
         if os.path.exists(output_file_path):
             with open(output_file_path, "r") as file:
                 previously_loaded_messages = json.load(file)
-            # combines previous messages with new one
             self.messages.extend(previously_loaded_messages)
 
         # format list to json format
@@ -136,25 +136,5 @@ class Subscriber:
 
 
 if __name__ == "__main__":
-    # checking for cli flags
-    parser = argparse.ArgumentParser(description="Subscriber to Google Pub/Sub")
-    parser.add_argument("-c", "--clear", action="store_true", help="Clear stream data")
-    args = parser.parse_args()
-
     # initiliaze the Subscriber to appropriate project and topic
     team_102_sub = Subscriber(PROJECT_ID, SUB_ID, TIMEOUT)
-
-    try:
-        # clear the data stream if -c flag is set
-        if args.clear:
-            print("Clearing data stream", flush=True)
-            team_102_sub.pull_messages(sub.clear_messages, False)
-
-        # otherwise, listen for messages and writes them to json file every 5 minutes
-        else:
-            while True:  # run indefinitely
-                team_102_sub.pull_messages(sub.log_messages, True)
-
-    # close stream once operations above finish running
-    finally:
-        team_102_sub.subscriber.close()

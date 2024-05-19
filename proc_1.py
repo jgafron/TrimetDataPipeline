@@ -1,20 +1,7 @@
-import inspect
-from datetime import datetime
 import pandas as pd
+from datetime import datetime
 from pandas import DataFrame
 
-
-# Custom Decorators
-def assertion(func):
-    """Decoractor to mark functions which handle data assertions"""
-    func.is_assertion = True
-    return func
-
-
-def transformation(func):
-    """Decorator to mark function which handle data transformations"""
-    func.is_transformation = True
-    return func
 
 class Processor:
     """
@@ -26,30 +13,35 @@ class Processor:
     @classmethod
     def validate_with_assertions(cls, data):
         """Apply the implemented assertions on the data"""
-        for _, method in inspect.getmembers(cls, predicate=lambda x: inspect.isfunction(x) or inspect.ismethod(x)):
-            if hasattr(method, "is_assertion"):
-                data = method(data)
+        data = cls.replace_missing(data)
+        data = cls.vehicle_id_exist(data)
+        data = cls.trip_id_exist(data)
+        data = cls.stop_id_exist(data)
+        data = cls.lat_lon_intra(data)
+        data = cls.lat_limit(data)
+        data = cls.lon_limit(data)
+        data = cls.odom_summary(data)
+        data = cls.odom_integrity(data)
+        data = cls.gps_integrity(data)
+        data = cls.opd_exist(data)
+        if data is None:
+            raise Exception(
+                "Attempted to validate empty or invalid data(e.g. missing columns)"
+            )
         return data
 
     @classmethod
     def transform_to_schema(cls, data):
         """Apply transformation on data to match database schema"""
         data = cls.add_timestamp(data)  # Ensure this runs first
-        data = cls.add_speed(data)      # Ensure this runs after timestamp has been added
-
-        # for _, method in inspect.getmembers(cls, predicate=lambda x: inspect.isfunction(x) or inspect.ismethod(x)):
-        #     print("transform loop")
-        #     if hasattr(method, "is_transformation"):
-        #         print("**************reached is_transformation************")
-        #         data = method(data)
+        data = cls.add_speed(data)  # Ensure this runs after timestamp has been added
 
         data = cls.rename_columns(data)
         return {
-            "breadcrumb_df": cls.get_breadcrumb_schema(data),
-            "trip_df": cls.get_trip_schema(data),
+            "BreadCrumb": cls.get_breadcrumb_schema(data),
+            "Trip": cls.get_trip_schema(data),
         }
 
-    
     @staticmethod
     def add_timestamp(df: DataFrame):
         """Replacing the OPD_DATE and ACT_TIME columns with a new TIMESTAMP column"""
@@ -124,7 +116,6 @@ class Processor:
         return df[trip_table_columns]
 
     @staticmethod
-    @assertion
     def replace_missing(df: DataFrame):  # FIll missing data with nulls
         columns_replace = [
             "EVENT_NO_TRIP",
@@ -143,7 +134,6 @@ class Processor:
         return df
 
     @staticmethod
-    @assertion
     def vehicle_id_exist(df: DataFrame):
         """Validate data for missing vehicle IDs"""
         if "VEHICLE_ID" in df.columns:
@@ -152,7 +142,6 @@ class Processor:
             return validated_df
 
     @staticmethod
-    @assertion
     def trip_id_exist(df: DataFrame):
         """Validate existance of trip ID"""
         if "EVENT_NO_TRIP" in df.columns:
@@ -163,7 +152,6 @@ class Processor:
             return validated_df
 
     @staticmethod
-    @assertion
     def stop_id_exist(df: DataFrame):
         """Validate existance of stop ID"""
         if "EVENT_NO_STOP" in df.columns:
@@ -174,7 +162,6 @@ class Processor:
             return validated_df
 
     @staticmethod
-    @assertion
     def lat_lon_intra(df: DataFrame):
         """Intra record check, if record has latitude it must have longitude and vice versa"""
         if "GPS_LATITUDE" in df.columns and "GPS_LONGITUDE" in df.columns:
@@ -190,7 +177,6 @@ class Processor:
             return validated_df
 
     @staticmethod
-    @assertion
     def lat_limit(df: DataFrame):
         """Check range of latitude (-90 to 90)"""
         if "GPS_LATITUDE" in df.columns:
@@ -201,7 +187,6 @@ class Processor:
             return validated_df
 
     @staticmethod
-    @assertion
     def lon_limit(df: DataFrame):
         """Check range of longitude (-180 to 180)"""
         if "GPS_LONGITUDE" in df.columns:
@@ -214,7 +199,6 @@ class Processor:
             return validated_df
 
     @staticmethod
-    @assertion
     def odom_summary(df: DataFrame):
         """Check to see if odomoter is ever jumping backwards (summary)"""
         if "METERS" in df.columns:
@@ -225,7 +209,6 @@ class Processor:
             return validated_df
 
     @staticmethod
-    @assertion
     def odom_integrity(df: DataFrame):
         """Make sure odomoter is never negative"""
         if "METERS" in df.columns:
@@ -234,7 +217,6 @@ class Processor:
             return validated_df
 
     @staticmethod
-    @assertion
     def gps_integrity(df: DataFrame):
         """Make sure satellite value is never below 0"""
         if "GPS_SATELLITES" in df.columns:
@@ -245,7 +227,6 @@ class Processor:
             return validated_df
 
     @staticmethod
-    @assertion
     def opd_exist(df: DataFrame):
         """Validate existance of OPD_DATE"""
         if "OPD_DATE" in df.columns:
