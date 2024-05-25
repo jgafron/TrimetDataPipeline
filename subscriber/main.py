@@ -1,12 +1,12 @@
 import os
 import argparse
 import sys
-from subscriber.subscriber import Subscriber
-from subscriber.bc_processor import Processor
+from subscriber import Subscriber
+from bc_processor import Processor
 
 PROJECT_ID = "data-eng-jtn7"
 SUB_ID = "bus-data-sub"
-TIMEOUT = 3
+TIMEOUT = 10
 
 BASE_DIR = os.path.dirname(__file__)
 BREADCRUMB_OUTPUT_DIR = os.path.join(BASE_DIR, "breadcrumb_output/")
@@ -38,3 +38,4 @@ if __name__ == "__main__":
             sub.save_messages("Breadcrumb", BREADCRUMB_OUTPUT_DIR)
     finally:
         sub.subscriber.close()
+        print("Stream closed.", flush=True)

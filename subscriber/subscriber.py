@@ -17,14 +17,30 @@ class Subscriber:
         self.sub_path = self.subscriber.subscription_path(project_id, sub_id)
         self.messages = []
         self.count = 0
+        self.init_db()
 
     def save_messages(self, dataset_name, output_dir):
-        self.pull_messages(self._save, dataset_name, output_dir)
+        print("Pull messages from stream...", flush=True)
+        try:
+            self.pull_messages(self._save, dataset_name, output_dir)
+        except Exception:
+            print("Subscriber timeout...")
+
+        print(f"Pulled {len(self.messages)} messages")
+        if self.messages:
+            print("Attempting to load messages to databse and save to json...", flush=True)
+            data = self.process_data()
+            self.upload_to_db(data)
+            self.save_to_json(dataset_name, output_dir)
 
     def clear_messages(self):
-        self.pull_messages(self._clear)
+        print("Clearing messages from stream...", flush=True)
+        try:
+            self.pull_messages(self._clear)
+        except Exception:
+            print("Subscriber timeout...")
 
-    def pull_messages(self, callback, dataset_name=None, output_dir=None, save=True):
+    def pull_messages(self, callback, dataset_name=None, output_dir=None):
         stream = self.subscriber.subscribe(self.sub_path, callback=callback)
         print(f"Listening for messages on {self.sub_path}..\n", flush=True)
 
@@ -34,12 +50,6 @@ class Subscriber:
         except TimeoutError:
             stream.cancel()  # Trigger the shutdown.
             stream.result()  # Block until the shutdown is complete.
-
-        # if not running cleaning mode, write messages to json file
-        if save:
-            data = self.process_data()
-            self.upload_to_db(data)
-            self.save_to_json(dataset_name, output_dir)
 
     def _save(self, message):
         json_data = message.data.decode("utf-8")

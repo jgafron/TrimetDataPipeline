@@ -1,4 +1,6 @@
 google-cloud-pubsub
 pandas
+psycopg2-binary
 SQLAlchemy
 python-dotenv
+bs4

@@ -1,5 +1,5 @@
 import os
-from publisher.publisher import Publisher
+from publisher import Publisher
 
 PROJECT_ID = "data-eng-jtn7"
 TOPIC_ID = "bus-data"

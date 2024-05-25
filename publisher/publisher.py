@@ -26,7 +26,7 @@ class Publisher:
         with open(self.dataset_path, mode="r") as file:
             dataset = json.load(file)
 
-        for vehicle_id in dataset["vehicle_id"]:
+        for vehicle_id in dataset["vehicle_ids"]:
             if (stops_data := self.get_stops_data(vehicle_id, api_url)) is None:
                 continue
 
@@ -62,7 +62,7 @@ class Publisher:
         with open(self.dataset_path, mode="r") as file:
             dataset = json.load(file)
 
-            for vehicle_id in dataset["vehicle_id"]:
+            for vehicle_id in dataset["vehicle_ids"]:
                 if (bc_data := self.get_breadcrumb_data(vehicle_id, api_url)) is None:
                     continue
 
