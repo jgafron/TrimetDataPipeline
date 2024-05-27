@@ -12,7 +12,6 @@ DATA_DIR = os.path.join(BASE_DIR, "data/")
 DATASET_PATH = os.path.join(DATA_DIR, "buttercup.json")
 
 if __name__ == "__main__":
-    '''
     breadcrumb_pub = Publisher(
         project_id=PROJECT_ID,
         topic_id=BREADCRUMB_TOPIC_ID,
@@ -22,7 +21,6 @@ if __name__ == "__main__":
     bc_success, bc_published = breadcrumb_pub.publish_breadcrumb_data(BREADCRUMB_API_URL)
     print(f"Successful Breadcrumb API Calls: {bc_success}")
     print(f"Published Breadcrumb messages: {bc_published}")
-    '''
 
     stops_pub = Publisher(
         project_id=PROJECT_ID,
