@@ -77,7 +77,8 @@ class Processor:
 
         # add speed column and ensure first row has same value as second row
         df["SPEED"] = df.apply(_create_speed, axis=1)
-        df.loc[1, "SPEED"] = df.loc[2, "SPEED"]
+        if 2 in df.index:
+            df.loc[1, "SPEED"] = df.loc[2, "SPEED"]
 
         # drop unnecessary rows
         transformed_df = df.drop(["dMETERS", "dTIMESTAMP"], axis=1)

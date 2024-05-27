@@ -2,15 +2,17 @@ import os
 import argparse
 import sys
 from subscriber import Subscriber
-from bc_processor import Processor
+from bc_processor import Processor as BreadcrumbProcessor
+from stops_processor import Processor as StopsProcessor
 
-PROJECT_ID = "data-eng-jtn7"
-SUB_ID = "bus-data-sub"
-TIMEOUT = 10
+PROJECT_ID = "team-102-data-engineering"
+BREADCRUMB_SUB_ID = "topic-102-sub"
+STOPS_SUB_ID = "trimet-stop-events-sub"
+TIMEOUT = 3
 
 BASE_DIR = os.path.dirname(__file__)
 BREADCRUMB_OUTPUT_DIR = os.path.join(BASE_DIR, "breadcrumb_output/")
-STOPS_OUPUT_DIR = os.path.join(BASE_DIR, "stops_output/")
+STOPS_OUTPUT_DIR = os.path.join(BASE_DIR, "stops_output/")
 
 
 if __name__ == "__main__":
@@ -22,20 +24,34 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    sub = Subscriber(
+    breadcrumb_sub = Subscriber(
         project_id=PROJECT_ID,
-        sub_id=SUB_ID,
+        sub_id=BREADCRUMB_SUB_ID,
         timeout=TIMEOUT,
-        processor=Processor,
+        processor=BreadcrumbProcessor,
     )
-
+    stops_sub = Subscriber(
+        project_id=PROJECT_ID,
+        sub_id=STOPS_SUB_ID,
+        timeout=TIMEOUT,
+        processor=StopsProcessor,
+    )
+ 
     if args.clear:
-        sub.clear_messages()
+        breadcrumb_sub.clear_messages()
+        stops_sub.clear_messages()
         sys.exit(1)
-
+    
+    # pipeline 1: Breadcrumb
     try:
-        while True:
-            sub.save_messages("Breadcrumb", BREADCRUMB_OUTPUT_DIR)
+        breadcrumb_sub.save_messages("Breadcrumb", BREADCRUMB_OUTPUT_DIR)
     finally:
-        sub.subscriber.close()
-        print("Stream closed.", flush=True)
+        breadcrumb_sub.subscriber.close()
+        print("Breadcrumb stream closed.", flush=True)
+
+    # pipeline 2: Stops
+    try:
+        stops_sub.save_messages("Stops", STOPS_OUTPUT_DIR)
+    finally:
+        stops_sub.subscriber.close()
+        print("Stops stream closed.", flush=True)

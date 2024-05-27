@@ -4,7 +4,8 @@ import pandas as pd
 from datetime import datetime
 from dotenv import load_dotenv
 from google.cloud import pubsub_v1
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, MetaData, Table, update
+from sqlalchemy.orm import sessionmaker
 
 
 class Subscriber:
@@ -28,9 +29,18 @@ class Subscriber:
 
         print(f"Pulled {len(self.messages)} messages")
         if self.messages:
-            print("Attempting to load messages to databse and save to json...", flush=True)
-            data = self.process_data()
-            self.upload_to_db(data)
+            print("Attempting to load messages to database and save to json...", flush=True)
+            if dataset_name == "Breadcrumb":
+                data = self.process_data()
+                self.upload_to_db(dataset_name, data)
+            elif dataset_name == "Stops":
+                df_tables = self.process_stops_data()
+                df_count = len(df_tables)
+                for i, df in enumerate(df_tables):
+                    print(f"Attempting to load data into database...[{i + 1}/{df_count}]")
+                    self.upload_to_db(dataset_name, df)
+                    break
+
             self.save_to_json(dataset_name, output_dir)
 
     def clear_messages(self):
@@ -72,11 +82,46 @@ class Subscriber:
         transformed_data = self.processor.transform_to_schema(validated_data)
         return transformed_data
 
-    def upload_to_db(self, data):
-        # append dataframe data to existing tables in Postgresql
-        for table, dataframe in data.items():
-            dataframe.to_sql(table, self.engine, if_exists="append", index=False)
-            print(f"Loaded {len(dataframe)} rows of data to {table}")
+    def process_stops_data(self):
+        json_messages = json.dumps(self.messages, indent=4)
+        messages = json.loads(json_messages)
+        df_tables = []
+        for message in messages:
+            headers = message['headers']
+            rows = message['rows']
+            df = pd.DataFrame(rows, columns=headers)
+            validated_data = self.processor.validate_with_assertions(df)
+            transformed_data = self.processor.transform_to_schema(validated_data)
+            df_tables.append(transformed_data)
+        return df_tables
+
+    def upload_to_db(self, dataset_name, data):
+        if dataset_name == "Breadcrumb":
+            for table, dataframe in data.items():
+                dataframe.to_sql(table, self.engine, if_exists="append", index=False)
+                print(f"Loaded {len(dataframe)} rows of data to {table}")
+        elif dataset_name == "Stops":
+            Session = sessionmaker(bind=self.engine)
+            session = Session()
+
+            metadata = MetaData()
+            trip_table = Table("Trip", metadata, autoload_with=self.engine)
+            for _, row in data.iterrows():
+                print(row)
+                stmt = (
+                    update(trip_table)
+                    .where(trip_table.c.trip_id == row['trip_id'])
+                    .values(
+                        route_id=row['route_id'],
+                        vehicle_id=row['vehicle_id'],
+                        service_key=row['service_key'],
+                        direction=row['direction']
+                    )
+                )
+                session.execute(stmt)
+
+            session.commit()
+
 
     def init_db(self):
         load_dotenv()
@@ -94,6 +139,7 @@ class Subscriber:
     def save_to_json(self, dataset_name, output_dir):
         today = datetime.today()
         formatted_date = today.strftime("%Y-%m-%d")
+
         output_filename = f"{formatted_date}_{dataset_name}_data.json"
         output_path = os.path.join(output_dir, output_filename)
 
@@ -106,5 +152,5 @@ class Subscriber:
         print(f"Saving messages to {output_path}", flush=True)
         with open(output_path, "w") as file:
             file.write(json_messages)
-
         self.messages = []
+        

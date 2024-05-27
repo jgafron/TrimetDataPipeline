@@ -33,18 +33,22 @@ class Publisher:
             successful_api_calls += 1
             soup = BeautifulSoup(stops_data, "html.parser")
             tables = soup.find_all("table")
+            h2_tags = soup.find_all("h2")
+            trip_ids = [h2.get_text().split()[-1] for h2 in h2_tags]
 
             tables_data = []
-            for table in tables:
+            for trip_id, table in zip(trip_ids, tables):
                 rows = table.find_all("tr")
                 h_row = rows[0]
                 headers = [th.get_text(strip=True) for th in h_row.find_all("th")]
+                headers.append("trip_id")
 
                 rows_data = []
                 for row in rows[1:]:
                     if (cells := row.find_all("td")) == 0:
                         continue
                     cell_data = [cell.get_text(strip=True) for cell in cells]
+                    cell_data.append(trip_id)
                     rows_data.append(cell_data)
 
                 tables_data.append({"headers": headers, "rows": rows_data})
@@ -78,14 +82,15 @@ class Publisher:
         params = {"vehicle_num": vehicle_id}
         query_string = urlencode(params)
         url = f"{api_url}?{query_string}"
-
         try:
             with urlopen(url, timeout=10) as response:
+                print(f"Found data for vehicle {vehicle_id}")
                 stops_data = response.read()
                 return stops_data
 
         except HTTPError as error:
-            print(error.status, error.reason, flush=True)
+            #print(error.status, error.reason, flush=True)
+            print(f"No data found for vehicle {vehicle_id}")
         except URLError as error:
             print(error.reason, flush=True)
         except TimeoutError:
@@ -102,7 +107,8 @@ class Publisher:
                 return breadcrumb_data
 
         except HTTPError as error:
-            print(error.status, error.reason, flush=True)
+            #print(error.status, error.reason, flush=True)
+            print(f"No data found for vehicle {vehicle_id}")
         except URLError as error:
             print(error.reason, flush=True)
         except TimeoutError:
