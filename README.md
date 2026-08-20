@@ -26,21 +26,27 @@ The pipeline continuously ingests live vehicle locations and stop-event data, ru
       Publisher Service
               │
               ▼
+              
   Google Cloud Pub/Sub
               │
               ▼
+              
      Subscriber Service
               │
               ▼
+              
     Validation & Cleaning
               │
               ▼
+              
  Speed Calculation / ETL
               │
               ▼
+              
         PostgreSQL
               │
               ▼
+              
   Mapbox Visualization
 
 ## How the Pipeline Works
