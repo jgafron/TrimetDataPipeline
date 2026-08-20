@@ -23,9 +23,11 @@ The pipeline continuously ingests live vehicle locations and stop-event data, ru
         TriMet APIs
               │
               ▼
+              
       Publisher Service
               │
               ▼
+              
    Google Cloud Pub/Sub
               │
               ▼
