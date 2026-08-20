@@ -26,7 +26,7 @@ The pipeline continuously ingests live vehicle locations and stop-event data, ru
       Publisher Service
               │
               ▼
-   Google Cloud Pub/Sub
+   Google Cloud Pub/Sub 
               │
               ▼
               
