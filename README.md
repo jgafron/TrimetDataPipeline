@@ -40,7 +40,7 @@ The pipeline continuously ingests live vehicle locations and stop-event data, ru
               │
               ▼
               
-   Speed Calculation / ETL
+    Speed Calculation / ETL
               │
               ▼
               
